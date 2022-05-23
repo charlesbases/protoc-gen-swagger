@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  swagger-ui:
+    image: charlesbases/swagger-ui:latest
+    container_name: swagger-ui
+    hostname: swagger_ui
+    restart: always
+    env_file: .env
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./doc:/swagger/doc
+    ports:
+      - "18888:8080"
+
+networks:
+  default:
+    name: swagger
