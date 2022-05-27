@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 
@@ -17,6 +18,16 @@ const SwaggerVersion = "2.0"
 
 var DefaultSchemes = []string{"http", "https"}
 
+// apiHost .
+func apiHost() string {
+	return os.Getenv("API_HOST")
+}
+
+// apiBasePath .
+func apiBasePath() string {
+	return os.Getenv("API_PREFIX")
+}
+
 // New .
 func New(p *protoc.Package) *Swagger {
 	var s = &Swagger{
@@ -29,10 +40,10 @@ func New(p *protoc.Package) *Swagger {
 			Version:     p.Version,
 			Description: p.Name,
 		},
-		// Host:     "0.0.0.0",
-		// BasePath: "/api/v1",
-		Schemes: DefaultSchemes,
-		Paths:   make(map[string]map[string]*API, 0),
+		Host:     apiHost(),
+		BasePath: apiBasePath(),
+		Schemes:  DefaultSchemes,
+		Paths:    make(map[string]map[string]*API, 0),
 	}
 
 	s.tidy()
