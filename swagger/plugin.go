@@ -175,7 +175,7 @@ func (api *API) parseParameters(s *Swagger, m *protoc.ServiceMethod) {
 }
 
 // parseParameterInPath .
-func (api API) parseParameterInPath(m *protoc.ServiceMethod) {
+func (api *API) parseParameterInPath(m *protoc.ServiceMethod) {
 	var uri = m.Path
 	for len(uri) > 2 {
 		l, r := strings.Index(uri, "{"), strings.Index(uri, "}")
