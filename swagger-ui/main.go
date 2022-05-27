@@ -15,7 +15,7 @@ import (
 
 var (
 	// httpPort port
-	httpPort = ":18888"
+	httpPort = ":8888"
 	// swaggerAPI api folder
 	swaggerAPI = "api"
 )

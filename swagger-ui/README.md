@@ -5,7 +5,7 @@
 - SWAGGER_PORT
 
   ```text
-  web ui 端口。默认：18888
+  web ui 端口。默认：8888
   ```
 
 - SWAGGER_DOC
