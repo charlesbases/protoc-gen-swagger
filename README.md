@@ -4,6 +4,14 @@
 
 ---
 
+### 说明
+
+```text
+暂不支持 map 类型
+```
+
+
+
 ### 安装
 
 - #### protoc
@@ -84,6 +92,8 @@ protoc --proto_path=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
   
   // 用户服务
   service Users {
+    // {"desc": "用户列表", "uri": "/api/v1/users/{uid}", "method": "GET"}
+    rpc User (Request) returns (Response) {}
     // {"desc": "用户列表", "uri": "/api/v1/users", "method": "GET"}
     rpc UserList (Request) returns (Response) {}
     // {"desc": "用户创建", "uri": "/api/v1/users", "method": "POST"}
