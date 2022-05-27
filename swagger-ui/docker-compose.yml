@@ -11,7 +11,7 @@ services:
     volumes:
       - /opt/swagger/doc:/swagger/api
     ports:
-      - "18888:18080"
+      - "${SWAGGER_POST:-18888}:18888"
 
 networks:
   default:
