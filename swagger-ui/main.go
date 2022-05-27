@@ -1,28 +1,45 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/urfave/negroni"
 )
 
-const defaultPort = ":8080"
+var (
+	// httpPort port
+	httpPort = ":18080"
+	// swaggerAPI api folder
+	swaggerAPI = "api"
+)
 
-const static = "/swagger"
-const docdir = "/swagger/doc/"
+func init() {
+	if envPort := os.Getenv("SWAGGER_PORT"); len(envPort) != 0 {
+		httpPort = envPort
+	}
+	if envAPI := os.Getenv("SWAGGER_DOC"); len(envAPI) != 0 {
+		swaggerAPI = envAPI
+	}
+
+	os.MkdirAll(swaggerAPI, 0755)
+}
 
 func main() {
 	r := mux.NewRouter()
-	r.PathPrefix(static).Handler(http.FileServer(http.Dir(".")))
-	r.PathPrefix("/swagger/*").Handler(fileserver())
+	r.PathPrefix("/swagger").Handler(fileserver())
 
 	n := negroni.New()
 	n.Use(recovery())
 	n.UseHandler(r)
 
-	n.Run(defaultPort)
+	n.Run(httpPort)
 }
 
 // rec .
@@ -46,15 +63,39 @@ func (rec) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerF
 	next(rw, r)
 }
 
-type fs string
+type fs struct {
+	fileServer    http.Handler
+	apiFileServer http.FileSystem
+}
 
 // fileserver .
 func fileserver() *fs {
-	return new(fs)
+	return &fs{
+		fileServer:    http.FileServer(http.Dir(".")),
+		apiFileServer: http.Dir(swaggerAPI),
+	}
 }
 
 // ServeHTTP .
-func (fs fs) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte(r.URL.Path))
+func (fs *fs) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	if strings.HasSuffix(r.URL.Path, ".json") {
+		api := strings.TrimPrefix(r.URL.Path, "/swagger/")
+
+		f, err := fs.apiFileServer.Open(api)
+		if err != nil {
+			http.Error(rw, fmt.Sprintf("%s not found or permission denied", api), http.StatusNotFound)
+			return
+		}
+
+		var buf = new(bytes.Buffer)
+		io.Copy(buf, f)
+		f.Close()
+
+		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write(buf.Bytes())
+		return
+	}
+
+	fs.fileServer.ServeHTTP(rw, r)
 }
