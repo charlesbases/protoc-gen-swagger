@@ -190,7 +190,6 @@ func (api *API) parseParameters(s *Swagger, m *protoc.ServiceMethod) {
 			Type:        "array",
 			Required:    true,
 			Description: m.Description,
-			Schema:      s.reflex(m.RequestName),
 		})
 	}
 }
