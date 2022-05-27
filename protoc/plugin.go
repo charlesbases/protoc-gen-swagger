@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/charlesbases/protoc-gen-swagger/logger"
@@ -12,6 +13,13 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
+
+var args = make(map[string]string, 0)
+
+// GetParam get protoc arg
+func GetParam(key string) string {
+	return args[key]
+}
 
 // Plugin .
 func Plugin(fn func(p *Package) *pluginpb.CodeGeneratorResponse) {
@@ -26,6 +34,13 @@ func Plugin(fn func(p *Package) *pluginpb.CodeGeneratorResponse) {
 	}
 	if len(req.GetFileToGenerate()) == 0 {
 		logger.Fatal("no file to generate")
+	}
+
+	// parse protoc args
+	for _, param := range strings.Split(req.GetParameter(), ",") {
+		if i := strings.Index(param, "="); i >= 0 {
+			args[param[0:i]] = param[i+1:]
+		}
 	}
 
 	if rsp, err := proto.Marshal(fn(parse(req))); err != nil {
