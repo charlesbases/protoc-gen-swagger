@@ -6,13 +6,12 @@ services:
     container_name: swagger-ui
     hostname: swagger_ui
     restart: always
-    env_file: .env
     environment:
       TZ: Asia/Shanghai
     volumes:
-      - ./doc:/swagger/doc
+      - /opt/swagger/doc:/swagger/api
     ports:
-      - "18888:8080"
+      - "18888:18080"
 
 networks:
   default:
