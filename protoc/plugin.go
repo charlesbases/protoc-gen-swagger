@@ -50,7 +50,7 @@ func parseArgs(req *pluginpb.CodeGeneratorRequest) {
 
 		switch param {
 		// 解析基础配置文件
-		case "conf_dir":
+		case "confdir":
 			conf.Parse(value)
 		}
 	}

@@ -24,12 +24,12 @@
 ### 运行
 
 ```shell
-protoc --proto_path=${GOPATH}/src:. --swagger_out=conf_dir=.:swagger pb/*.proto
+protoc --proto_path=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
 ```
 
 ### 参数
 
-- ##### config: 参数文件(swagger.toml)目录
+- ##### confdir: 参数文件(swagger.toml)目录
 
   
 
