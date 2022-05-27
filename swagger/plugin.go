@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/charlesbases/protoc-gen-swagger/conf"
 	"github.com/charlesbases/protoc-gen-swagger/logger"
@@ -46,24 +45,9 @@ func New(p *protoc.Package) *Swagger {
 		Paths:    make(map[string]map[string]*API, 0),
 	}
 
-	s.tidy()
+	s.parseDefinitions()
+	s.parseServices()
 
-	var swg = sync.WaitGroup{}
-	swg.Add(2)
-
-	go func() {
-		s.parseServices()
-
-		swg.Done()
-	}()
-
-	go func() {
-		s.parseDefinitions()
-
-		swg.Done()
-	}()
-
-	swg.Wait()
 	return s
 }
 
@@ -78,18 +62,6 @@ func (s *Swagger) Generater() *pluginpb.CodeGeneratorResponse_File {
 	return &pluginpb.CodeGeneratorResponse_File{
 		Name:    &s.name,
 		Content: &content,
-	}
-}
-
-// tidy .
-func (s *Swagger) tidy() {
-	s.defs = make(map[string]string, len(s.p.Messages)+len(s.p.Enums))
-
-	for _, item := range s.p.Enums {
-		s.defs[item.Name] = fmt.Sprintf("#/definitions/%s", item.Name)
-	}
-	for _, item := range s.p.Messages {
-		s.defs[item.Name] = fmt.Sprintf("#/definitions/%s", item.Name)
 	}
 }
 
@@ -136,6 +108,7 @@ const (
 	PositionHeader Position = "header"
 	PositionQuery  Position = "query"
 	PositionBody   Position = "body"
+	PositionPath   Position = "path"
 )
 
 // position .
@@ -174,6 +147,9 @@ func (api *API) parseParameters(s *Swagger, m *protoc.ServiceMethod) {
 		}
 	}
 
+	// parse path params
+	api.parseParameterInPath(m)
+
 	switch api.position(m) {
 	case PositionBody:
 		api.Parameters = append(api.Parameters, &Parameter{
@@ -184,18 +160,42 @@ func (api *API) parseParameters(s *Swagger, m *protoc.ServiceMethod) {
 			Schema:      s.reflex(m.RequestName),
 		})
 	case PositionQuery:
-		api.Parameters = append(api.Parameters, &Parameter{
-			In:          PositionQuery,
-			Name:        m.Name,
-			Type:        "array",
-			Required:    false,
-			Description: m.Description,
-		})
+		if mess, found := s.Definitions[m.RequestName]; found {
+			for name, field := range mess.Nesteds {
+				api.Parameters = append(api.Parameters, &Parameter{
+					In:          PositionQuery,
+					Name:        name,
+					Type:        field.Type,
+					Required:    false,
+					Description: field.Description,
+				})
+			}
+		}
+	}
+}
+
+// parseParameterInPath .
+func (api API) parseParameterInPath(m *protoc.ServiceMethod) {
+	var uri = m.Path
+	for len(uri) > 2 {
+		l, r := strings.Index(uri, "{"), strings.Index(uri, "}")
+		if l > 0 && r > 0 && r > l {
+			api.Parameters = append(api.Parameters, &Parameter{
+				In:       PositionPath,
+				Name:     uri[l+1 : r],
+				Type:     "string",
+				Required: false,
+			})
+			uri = uri[r+1:]
+		} else {
+			return
+		}
 	}
 }
 
 // parseDefinitions .
 func (s *Swagger) parseDefinitions() {
+	s.defs = make(map[string]string, len(s.p.Messages)+len(s.p.Enums))
 	s.Definitions = make(map[string]*Definition)
 
 	s.parseProtoEnum()
@@ -221,6 +221,8 @@ func (s *Swagger) parseProtoEnum() {
 		def.Description = enum.Description
 
 		s.Definitions[enum.Name] = def
+
+		s.defs[enum.Name] = fmt.Sprintf("#/definitions/%s", enum.Name)
 	}
 }
 
@@ -236,6 +238,8 @@ func (s *Swagger) parseProtoMessage() {
 
 		def.Nesteds = fields
 		s.Definitions[mess.Name] = def
+
+		s.defs[mess.Name] = fmt.Sprintf("#/definitions/%s", mess.Name)
 	}
 }
 
