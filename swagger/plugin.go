@@ -179,7 +179,7 @@ func (api *API) parseParameters(s *Swagger, m *protoc.ServiceMethod) {
 		api.Parameters = append(api.Parameters, &Parameter{
 			In:          PositionBody,
 			Name:        m.Name,
-			Required:    true,
+			Required:    false,
 			Description: m.Description,
 			Schema:      s.reflex(m.RequestName),
 		})
@@ -188,7 +188,7 @@ func (api *API) parseParameters(s *Swagger, m *protoc.ServiceMethod) {
 			In:          PositionQuery,
 			Name:        m.Name,
 			Type:        "array",
-			Required:    true,
+			Required:    false,
 			Description: m.Description,
 		})
 	}
