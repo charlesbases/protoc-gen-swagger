@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 
+	"github.com/charlesbases/protoc-gen-swagger/conf"
 	"github.com/charlesbases/protoc-gen-swagger/logger"
 	"github.com/charlesbases/protoc-gen-swagger/protoc"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -16,16 +16,16 @@ import (
 
 const SwaggerVersion = "2.0"
 
+const DefaultAPIHost = "0.0.0.0"
+
 var DefaultSchemes = []string{"http", "https"}
 
 // apiHost .
 func apiHost() string {
-	return os.Getenv("API_HOST")
-}
-
-// apiBasePath .
-func apiBasePath() string {
-	return os.Getenv("API_PREFIX")
+	if len(conf.Get().Host) != 0 {
+		return conf.Get().Host
+	}
+	return DefaultAPIHost
 }
 
 // New .
@@ -41,7 +41,7 @@ func New(p *protoc.Package) *Swagger {
 			Description: p.Name,
 		},
 		Host:     apiHost(),
-		BasePath: apiBasePath(),
+		BasePath: "",
 		Schemes:  DefaultSchemes,
 		Paths:    make(map[string]map[string]*API, 0),
 	}
@@ -130,13 +130,21 @@ func (s *Swagger) parseServices() {
 	}
 }
 
+type Position string
+
+const (
+	PositionHeader Position = "header"
+	PositionQuery  Position = "query"
+	PositionBody   Position = "body"
+)
+
 // position .
-func (api *API) position(m *protoc.ServiceMethod) string {
+func (api *API) position(m *protoc.ServiceMethod) Position {
 	switch m.Method {
 	case http.MethodGet:
-		return "query"
+		return PositionQuery
 	default:
-		return "body"
+		return PositionBody
 	}
 }
 
@@ -152,13 +160,39 @@ func (api *API) parseResponses(s *Swagger, m *protoc.ServiceMethod) {
 
 // parseParameters .
 func (api *API) parseParameters(s *Swagger, m *protoc.ServiceMethod) {
-	api.Parameters = append(api.Parameters, &Parameter{
-		In:          api.position(m),
-		Name:        m.Name,
-		Required:    true,
-		Description: m.Description,
-		Schema:      s.reflex(m.RequestName),
-	})
+	// Header
+	{
+		// Authorization
+		if len(conf.Get().Header.Auth) != 0 {
+			api.Parameters = append(api.Parameters, &Parameter{
+				In:          PositionHeader,
+				Name:        conf.Get().Header.Auth,
+				Type:        "string",
+				Required:    false,
+				Description: "Authorization in Header",
+			})
+		}
+	}
+
+	switch api.position(m) {
+	case PositionBody:
+		api.Parameters = append(api.Parameters, &Parameter{
+			In:          PositionBody,
+			Name:        m.Name,
+			Required:    true,
+			Description: m.Description,
+			Schema:      s.reflex(m.RequestName),
+		})
+	case PositionQuery:
+		api.Parameters = append(api.Parameters, &Parameter{
+			In:          PositionQuery,
+			Name:        m.Name,
+			Type:        "array",
+			Required:    true,
+			Description: m.Description,
+			Schema:      s.reflex(m.RequestName),
+		})
+	}
 }
 
 // parseDefinitions .

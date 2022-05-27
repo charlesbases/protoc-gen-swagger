@@ -140,9 +140,10 @@ type API struct {
 
 // Parameter .
 type Parameter struct {
-	In       string `json:"in,omitempty"`
-	Name     string `json:"name,omitempty"`
-	Required bool   `json:"required,omitempty"`
+	In       Position `json:"in,omitempty"`
+	Name     string   `json:"name,omitempty"`
+	Type     string   `json:"type,omitempty"`
+	Required bool     `json:"required,omitempty"`
 	// Description description
 	Description string `json:"description,omitempty"`
 	// Schema Definition path

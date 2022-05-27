@@ -1,0 +1,7 @@
+# swagger api host
+host = "0.0.0.0"
+
+# header in request
+[header]
+# auth
+auth = "Authorization"

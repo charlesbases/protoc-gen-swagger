@@ -8,18 +8,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/charlesbases/protoc-gen-swagger/conf"
 	"github.com/charlesbases/protoc-gen-swagger/logger"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
-
-var args = make(map[string]string, 0)
-
-// GetParam get protoc arg
-func GetParam(key string) string {
-	return args[key]
-}
 
 // Plugin .
 func Plugin(fn func(p *Package) *pluginpb.CodeGeneratorResponse) {
@@ -36,17 +30,29 @@ func Plugin(fn func(p *Package) *pluginpb.CodeGeneratorResponse) {
 		logger.Fatal("no file to generate")
 	}
 
-	// parse protoc args
-	for _, param := range strings.Split(req.GetParameter(), ",") {
-		if i := strings.Index(param, "="); i >= 0 {
-			args[param[0:i]] = param[i+1:]
-		}
-	}
+	parseArgs(req)
 
 	if rsp, err := proto.Marshal(fn(parse(req))); err != nil {
 		logger.Fatal(err)
 	} else {
 		os.Stdout.Write(rsp)
+	}
+}
+
+// parseArgs 加载 protoc 传入的参数
+func parseArgs(req *pluginpb.CodeGeneratorRequest) {
+	for _, param := range strings.Split(req.GetParameter(), ",") {
+		var value string
+		if i := strings.Index(param, "="); i >= 0 {
+			value = param[i+1:]
+			param = param[0:i]
+		}
+
+		switch param {
+		// 解析基础配置文件
+		case "conf_dir":
+			conf.Parse(value)
+		}
 	}
 }
 
