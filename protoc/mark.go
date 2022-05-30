@@ -16,11 +16,13 @@ type Mark struct {
 // newPackage .
 func (m *Mark) newPackage() *Package {
 	return &Package{
-		Name:     m.Name,
-		Version:  version(),
-		Services: make([]*Service, 0),
-		Messages: make([]*Message, 0),
-		Enums:    make([]*Enum, 0),
+		Name:       m.Name,
+		Version:    version(),
+		Services:   make([]*Service, 0),
+		Enums:      make([]*Enum, 0),
+		EnumDic:    make(map[string]*Enum, 0),
+		Messages:   make([]*Message, 0),
+		MessageDic: make(map[string]*Message, 0),
 	}
 }
 

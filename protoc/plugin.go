@@ -69,24 +69,24 @@ func parse(req *pluginpb.CodeGeneratorRequest) *Package {
 			// parse comment
 			var cs = parseComments(file.SourceCodeInfo)
 
+			// parse enum
+			for idx, protoEnum := range file.GetEnumType() {
+				p.appendEnum(cs.parseEnum(protoEnum, COMMENT_PATH_ENUM, idx))
+			}
+
 			// parse message
 			for midx, protoMessage := range file.GetMessageType() {
 				var paths = []int{COMMENT_PATH_MESSAGE, midx}
 
-				for nidx, protoNested := range protoMessage.GetNestedType() {
-					p.Messages = append(p.Messages, cs.parseMessageNested(protoNested, protoMessage.GetName(), append(paths, COMMENT_PATH_MESSAGE_MESSAGE, nidx)...))
-				}
-
 				for eidx, protoEnum := range protoMessage.GetEnumType() {
-					p.Enums = append(p.Enums, cs.parseMessageEnum(protoEnum, protoMessage.GetName(), append(paths, COMMENT_PATH_MESSAGE_ENUM, eidx)...))
+					p.appendEnum(cs.parseMessageEnum(protoEnum, protoMessage.GetName(), append(paths, COMMENT_PATH_MESSAGE_ENUM, eidx)...))
 				}
 
-				p.Messages = append(p.Messages, cs.parseMessage(protoMessage, paths...))
-			}
+				for nidx, protoNested := range protoMessage.GetNestedType() {
+					p.appendMessage(cs.parseMessageNested(protoNested, protoMessage.GetName(), append(paths, COMMENT_PATH_MESSAGE_MESSAGE, nidx)...))
+				}
 
-			// parse enum
-			for idx, protoEnum := range file.GetEnumType() {
-				p.Enums = append(p.Enums, cs.parseEnum(protoEnum, COMMENT_PATH_ENUM, idx))
+				p.appendMessage(cs.parseMessage(protoMessage, paths...))
 			}
 
 			// parse service
@@ -124,6 +124,26 @@ func parseComments(infor *descriptorpb.SourceCodeInfo) comments {
 		}
 	}
 	return cs
+}
+
+// appendEnum .
+func (p *Package) appendEnum(def *Enum) {
+	p.enumLocker.Lock()
+	if _, found := p.EnumDic[def.Name]; !found {
+		p.EnumDic[def.Name] = def
+		p.Enums = append(p.Enums, def)
+	}
+	p.enumLocker.Unlock()
+}
+
+// appendMessage .
+func (p *Package) appendMessage(def *Message) {
+	p.messLocker.Lock()
+	if _, found := p.MessageDic[def.Name]; !found {
+		p.MessageDic[def.Name] = def
+		p.Messages = append(p.Messages, def)
+	}
+	p.messLocker.Unlock()
 }
 
 // parseservice parse service in proto
@@ -205,10 +225,9 @@ func (cs comments) parseMessageField(protoMessage *descriptorpb.DescriptorProto,
 	case JSON_TYPE_OBJECT:
 		typename := split(protoField.GetTypeName())
 
-		field.JsonType = typename[1]
 		field.ProtoTypeName = typename[1]
 		field.ProtoPackagePath = typename[0]
-		field.ProtoShortName = protoField.GetTypeName()
+		field.ProtoFullName = protoField.GetTypeName()
 	case JSON_TPYE_NUMBER, JSON_TYPE_STRING, JSON_TYPE_BOOLEAN:
 		field.ProtoTypeName = descriptorpb.FieldDescriptorProto_Type_name[int32(field.ProtoType)]
 	}

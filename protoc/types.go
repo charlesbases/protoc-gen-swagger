@@ -62,6 +62,9 @@ const ContentTypeJson = "application/json"
 
 type (
 	Package struct {
+		enumLocker sync.RWMutex
+		messLocker sync.RWMutex
+
 		// Name Package.Name
 		Name string
 		// Version version
@@ -70,10 +73,14 @@ type (
 		Prefix string
 		// Services Service list
 		Services []*Service
-		// Messages Message list
-		Messages []*Message
 		// Enums Enum list
 		Enums []*Enum
+		// EnumDic Enum map
+		EnumDic map[string]*Enum
+		// Messages Message list
+		Messages []*Message
+		// MessageDic Message map
+		MessageDic map[string]*Message
 	}
 
 	Service struct {
@@ -123,7 +130,7 @@ type (
 		ProtoLaber       descriptorpb.FieldDescriptorProto_Label // proto 标签
 		ProtoType        descriptorpb.FieldDescriptorProto_Type  // 隐式类型
 		ProtoTypeName    string                                  // 显示类型
-		ProtoShortName   string                                  // 短名称
+		ProtoFullName    string                                  // 包名.结构名
 		ProtoPackagePath string                                  // 包路径
 		ProtoNumber      int32                                   // 排序
 
