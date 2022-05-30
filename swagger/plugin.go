@@ -2,7 +2,6 @@ package swagger
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -66,11 +65,11 @@ func (s *Swagger) Generater() *pluginpb.CodeGeneratorResponse_File {
 }
 
 // reflex return #/definitions/...
-func (s *Swagger) reflex(defname string) *Schema {
-	if ref, found := s.defs[defname]; found {
-		return &Schema{Reflex: ref}
+func (s *Swagger) reflex(defname string) *Definition {
+	if ref, found := s.refs[defname]; found {
+		return &Definition{Reflex: ref}
 	} else {
-		return &Schema{}
+		return &Definition{}
 	}
 }
 
@@ -93,7 +92,7 @@ func (s *Swagger) parseServices() {
 			}
 
 			api.parseResponses(s, m)
-			api.parseParameters(s, m)
+			api.parseParameter(s, m)
 
 			s.push(m.Path, m.Method, api)
 		}
@@ -102,101 +101,12 @@ func (s *Swagger) parseServices() {
 	}
 }
 
-type Position string
-
-const (
-	PositionHeader Position = "header"
-	PositionQuery  Position = "query"
-	PositionBody   Position = "body"
-	PositionPath   Position = "path"
-)
-
-// position .
-func (api *API) position(m *protoc.ServiceMethod) Position {
-	switch m.Method {
-	case http.MethodGet:
-		return PositionQuery
-	default:
-		return PositionBody
-	}
-}
-
-// parseResponses .
-func (api *API) parseResponses(s *Swagger, m *protoc.ServiceMethod) {
-	api.Responses = map[string]*Parameter{
-		"200": {
-			Description: "successful",
-			Schema:      s.reflex(m.ResponseName),
-		},
-	}
-}
-
-// parseParameters .
-func (api *API) parseParameters(s *Swagger, m *protoc.ServiceMethod) {
-	// Header
-	{
-		// Authorization
-		if len(conf.Get().Header.Auth) != 0 {
-			api.Parameters = append(api.Parameters, &Parameter{
-				In:          PositionHeader,
-				Name:        conf.Get().Header.Auth,
-				Type:        "string",
-				Required:    false,
-				Description: "Authorization in Header",
-			})
-		}
-	}
-
-	// parse path params
-	api.parseParameterInPath(m)
-
-	switch api.position(m) {
-	case PositionBody:
-		api.Parameters = append(api.Parameters, &Parameter{
-			In:          PositionBody,
-			Name:        m.Name,
-			Required:    false,
-			Description: m.Description,
-			Schema:      s.reflex(m.RequestName),
-		})
-	case PositionQuery:
-		if mess, found := s.Definitions[m.RequestName]; found {
-			for name, field := range mess.Nesteds {
-				api.Parameters = append(api.Parameters, &Parameter{
-					In:          PositionQuery,
-					Name:        name,
-					Type:        field.Type,
-					Required:    false,
-					Description: field.Description,
-				})
-			}
-		}
-	}
-}
-
-// parseParameterInPath .
-func (api *API) parseParameterInPath(m *protoc.ServiceMethod) {
-	var uri = m.Path
-	for len(uri) > 2 {
-		l, r := strings.Index(uri, "{"), strings.Index(uri, "}")
-		if l > 0 && r > 0 && r > l {
-			api.Parameters = append(api.Parameters, &Parameter{
-				In:       PositionPath,
-				Name:     uri[l+1 : r],
-				Type:     "string",
-				Required: false,
-			})
-			uri = uri[r+1:]
-		} else {
-			return
-		}
-	}
-}
+const refprefix = "#/definitions/"
 
 // parseDefinitions .
 func (s *Swagger) parseDefinitions() {
-	s.defs = make(map[string]string, len(s.p.Messages)+len(s.p.Enums))
-	s.Definitions = make(map[string]*Definition)
+	s.refs = make(map[string]string, len(s.p.Messages)+len(s.p.Enums))
+	s.Definitions = make(map[string]*Definition, len(s.p.Messages)+len(s.p.Enums))
 
 	s.parseProtoEnum()
 	s.parseProtoMessage()
@@ -205,7 +115,11 @@ func (s *Swagger) parseDefinitions() {
 // parseProtoEnum .
 func (s *Swagger) parseProtoEnum() {
 	for _, enum := range s.p.Enums {
-		var def = &Definition{Type: "string", Enum: make([]string, 0, len(enum.Fields))}
+		var def = &Definition{
+			Name: enum.Name,
+			Type: "string",
+			Enum: make([]string, 0, len(enum.Fields)),
+		}
 
 		// key list
 		for _, field := range enum.Fields {
@@ -221,15 +135,18 @@ func (s *Swagger) parseProtoEnum() {
 		def.Description = enum.Description
 
 		s.Definitions[enum.Name] = def
-
-		s.defs[enum.Name] = fmt.Sprintf("#/definitions/%s", enum.Name)
+		s.refs[enum.Name] = refprefix + enum.Name
 	}
 }
 
 // parseProtoMessage .
 func (s *Swagger) parseProtoMessage() {
 	for _, mess := range s.p.Messages {
-		var def = &Definition{Type: "object", Description: mess.Description}
+		var def = &Definition{
+			Name:        mess.Name,
+			Type:        "object",
+			Description: mess.Description,
+		}
 		fields := make(map[string]*Definition, 0)
 
 		for _, mf := range mess.Fields {
@@ -237,9 +154,9 @@ func (s *Swagger) parseProtoMessage() {
 		}
 
 		def.Nesteds = fields
-		s.Definitions[mess.Name] = def
 
-		s.defs[mess.Name] = fmt.Sprintf("#/definitions/%s", mess.Name)
+		s.Definitions[mess.Name] = def
+		s.refs[mess.Name] = refprefix + mess.Name
 	}
 }
 
@@ -286,4 +203,128 @@ func (s *Swagger) push(uri string, method string, api *API) {
 
 		s.Paths[uri] = apis
 	}
+}
+
+type Position string
+
+const (
+	PositionHeader Position = "header"
+	PositionQuery  Position = "query"
+	PositionBody   Position = "body"
+	PositionPath   Position = "path"
+)
+
+// position .
+func (api *API) position(m *protoc.ServiceMethod) Position {
+	switch m.Method {
+	case http.MethodGet:
+		return PositionQuery
+	default:
+		return PositionBody
+	}
+}
+
+// parseResponses .
+func (api *API) parseResponses(s *Swagger, m *protoc.ServiceMethod) {
+	api.Responses = map[string]*Parameter{
+		"200": {
+			Description: "successful",
+			Schema:      s.reflex(m.ResponseName),
+		},
+	}
+}
+
+// parseParameter .
+func (api *API) parseParameter(s *Swagger, m *protoc.ServiceMethod) {
+	api.parseParameterInHeader()
+	api.parseParameterInPath(m)
+
+	switch api.position(m) {
+	case PositionBody:
+		api.parseParameterInBody(s, m)
+	case PositionQuery:
+		api.parseParameterInQuery(s, m)
+	}
+}
+
+// parseParameterInHeader .
+func (api *API) parseParameterInHeader() {
+	// Authorization
+	if len(conf.Get().Header.Auth) != 0 {
+		api.Parameters = append(api.Parameters, &Parameter{
+			In:          PositionHeader,
+			Name:        conf.Get().Header.Auth,
+			Type:        "string",
+			Required:    false,
+			Description: "Authorization in Header",
+		})
+	}
+}
+
+// parseParameter .
+func (api *API) parseParameterInPath(m *protoc.ServiceMethod) {
+	var uri = m.Path
+	for len(uri) > 2 {
+		l, r := strings.Index(uri, "{"), strings.Index(uri, "}")
+		if l > 0 && r > 0 && r > l {
+			api.Parameters = append(api.Parameters, &Parameter{
+				In:       PositionPath,
+				Name:     uri[l+1 : r],
+				Type:     "string",
+				Required: false,
+			})
+			uri = uri[r+1:]
+		} else {
+			return
+		}
+	}
+}
+
+// parseParameterInBody .
+func (api *API) parseParameterInBody(s *Swagger, m *protoc.ServiceMethod) {
+	api.Parameters = append(api.Parameters, &Parameter{
+		In:          PositionBody,
+		Name:        m.Name,
+		Required:    false,
+		Description: m.Description,
+		Schema:      s.reflex(m.RequestName),
+	})
+}
+
+// parseParameter .
+func (api *API) parseParameterInQuery(s *Swagger, m *protoc.ServiceMethod) {
+	if mess, found := s.Definitions[m.RequestName]; found {
+		// message fields
+		for name, field := range mess.Nesteds {
+			// enum
+			if len(field.Reflex) != 0 {
+				api.Parameters = append(api.Parameters, api.parseParameterNestedsInQuery(s, name, field.Reflex))
+			} else {
+				api.Parameters = append(api.Parameters, &Parameter{
+					In:          PositionQuery,
+					Name:        name,
+					Type:        field.Type,
+					Required:    false,
+					Description: field.Description,
+				})
+			}
+		}
+	}
+}
+
+// parseParameterNestedsInQuery .
+func (api *API) parseParameterNestedsInQuery(s *Swagger, fieldName string, fieldRef string) *Parameter {
+	// query 中的 nesteds 只允许为 enum
+	if def, found := s.Definitions[strings.TrimPrefix(fieldRef, refprefix)]; found && len(def.Enum) != 0 {
+		return &Parameter{
+			In:          PositionQuery,
+			Name:        fieldName,
+			Type:        def.Type,
+			Required:    false,
+			Enum:        def.Enum,
+			Default:     def.Default,
+			Description: def.Description,
+		}
+	}
+	return nil
 }

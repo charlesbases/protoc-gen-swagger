@@ -44,9 +44,10 @@ var prototypes = map[descriptorpb.FieldDescriptorProto_Type]*Definition{
 
 // Swagger .
 type Swagger struct {
-	name string            `json:"-"`
+	name string `json:"-"`
+
 	p    *protoc.Package   `json:"-"`
-	defs map[string]string `json:"-"`
+	refs map[string]string `json:"-"`
 
 	// Swagger version
 	Swagger string `json:"swagger,omitempty"`
@@ -86,6 +87,8 @@ type Tag struct {
 
 // Definition model
 type Definition struct {
+	// Name name
+	Name string `json:"-"`
 	// Type json type
 	Type string `json:"type,omitempty"`
 	// Description description
@@ -144,16 +147,12 @@ type Parameter struct {
 	Name     string   `json:"name,omitempty"`
 	Type     string   `json:"type,omitempty"`
 	Required bool     `json:"required,omitempty"`
+	// Enum enum keys
+	Enum []string `json:"enum,omitempty"`
+	// Default default value
+	Default string `json:"default,omitempty"`
 	// Description description
 	Description string `json:"description,omitempty"`
 	// Schema Definition path
-	Schema *Schema `json:"schema,omitempty"`
-}
-
-// Schema .
-type Schema struct {
-	Type        string  `json:"type,omitempty"`
-	Reflex      string  `json:"$ref,omitempty"`
-	Description string  `json:"description,omitempty"`
-	Items       *Schema `json:"items,omitempty"`
+	Schema *Definition `json:"schema,omitempty"`
 }
