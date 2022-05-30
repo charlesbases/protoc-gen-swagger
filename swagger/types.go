@@ -155,4 +155,6 @@ type Parameter struct {
 	Description string `json:"description,omitempty"`
 	// Schema Definition path
 	Schema *Definition `json:"schema,omitempty"`
+	// Items array info
+	Items *Definition `json:"items,omitempty"`
 }

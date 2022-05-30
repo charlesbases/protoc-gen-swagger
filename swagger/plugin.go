@@ -296,35 +296,62 @@ func (api *API) parseParameterInQuery(s *Swagger, m *protoc.ServiceMethod) {
 	if mess, found := s.Definitions[m.RequestName]; found {
 		// message fields
 		for name, field := range mess.Nesteds {
-			// enum
-			if len(field.Reflex) != 0 {
-				api.Parameters = append(api.Parameters, api.parseParameterNestedsInQuery(s, name, field.Reflex))
-			} else {
-				api.Parameters = append(api.Parameters, &Parameter{
-					In:          PositionQuery,
-					Name:        name,
-					Type:        field.Type,
-					Required:    false,
-					Description: field.Description,
-				})
+			switch field.Type {
+			case "array":
+				// repeated nesteds
+				if len(field.Items.Reflex) != 0 {
+					// query 中的 nesteds 只允许为 enum
+					if def, found := s.Definitions[strings.TrimPrefix(field.Items.Reflex, refprefix)]; found && len(def.Enum) != 0 {
+						api.Parameters = append(api.Parameters, &Parameter{
+							In:          PositionQuery,
+							Name:        name,
+							Type:        field.Type,
+							Required:    false,
+							Description: field.Description,
+							Items: &Definition{
+								Type:    def.Type,
+								Enum:    def.Enum,
+								Default: def.Default,
+							},
+						})
+					}
+				} else {
+					api.Parameters = append(api.Parameters, &Parameter{
+						In:          PositionQuery,
+						Name:        name,
+						Type:        field.Type,
+						Required:    false,
+						Description: field.Description,
+						Items: &Definition{
+							Type: field.Items.Type,
+						},
+					})
+				}
+			default:
+				// nesteds
+				if len(field.Reflex) != 0 {
+					// query 中的 nesteds 只允许为 enum
+					if def, found := s.Definitions[strings.TrimPrefix(field.Reflex, refprefix)]; found && len(def.Enum) != 0 {
+						api.Parameters = append(api.Parameters, &Parameter{
+							In:          PositionQuery,
+							Name:        name,
+							Type:        def.Type,
+							Required:    false,
+							Enum:        def.Enum,
+							Default:     def.Default,
+							Description: def.Description,
+						})
+					}
+				} else {
+					api.Parameters = append(api.Parameters, &Parameter{
+						In:          PositionQuery,
+						Name:        name,
+						Type:        field.Type,
+						Required:    false,
+						Description: field.Description,
+					})
+				}
 			}
 		}
 	}
-}
-
-// parseParameterNestedsInQuery .
-func (api *API) parseParameterNestedsInQuery(s *Swagger, fieldName string, fieldRef string) *Parameter {
-	// query 中的 nesteds 只允许为 enum
-	if def, found := s.Definitions[strings.TrimPrefix(fieldRef, refprefix)]; found && len(def.Enum) != 0 {
-		return &Parameter{
-			In:          PositionQuery,
-			Name:        fieldName,
-			Type:        def.Type,
-			Required:    false,
-			Enum:        def.Enum,
-			Default:     def.Default,
-			Description: def.Description,
-		}
-	}
-	return nil
 }
