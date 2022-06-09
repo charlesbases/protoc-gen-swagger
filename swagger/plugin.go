@@ -28,15 +28,20 @@ func apiHost() string {
 
 // New .
 func New(p *protoc.Package) *Swagger {
+	var service = conf.Get().Service
+	if len(service) == 0 {
+		service = p.Name
+	}
+
 	var s = &Swagger{
 		name: p.Name + ".json",
 		p:    p,
 
 		Swagger: SwaggerVersion,
 		Info: &Info{
-			Title:       p.Name,
+			Title:       service,
 			Version:     p.Version,
-			Description: p.Name,
+			Description: service,
 		},
 		Host:     apiHost(),
 		BasePath: "",

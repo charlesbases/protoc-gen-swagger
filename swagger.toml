@@ -1,5 +1,7 @@
 # swagger api host
 host = "0.0.0.0"
+# swagger title
+service = "swagger"
 
 # header in request
 [header]

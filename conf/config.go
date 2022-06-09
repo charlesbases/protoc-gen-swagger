@@ -14,8 +14,9 @@ var conf = new(config)
 
 // config .
 type config struct {
-	Host   string
-	Header header
+	Host    string
+	Service string
+	Header  header
 }
 
 // header .
