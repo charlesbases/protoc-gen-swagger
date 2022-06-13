@@ -1,5 +1,9 @@
 # Swagger-UI
 
+```
+http://127.0.0.1:8888/swagger
+```
+
 #### 环境变量
 
 - SWAGGER_PORT
