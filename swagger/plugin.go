@@ -14,7 +14,7 @@ import (
 
 const SwaggerVersion = "2.0"
 
-const DefaultAPIHost = "0.0.0.0"
+const DefaultAPIHost = "127.0.0.1"
 
 var DefaultSchemes = []string{"http", "https"}
 
@@ -71,11 +71,7 @@ func (s *Swagger) Generater() *pluginpb.CodeGeneratorResponse_File {
 
 // reflex return #/definitions/...
 func (s *Swagger) reflex(defname string) *Definition {
-	if ref, found := s.refs[defname]; found {
-		return &Definition{Reflex: ref}
-	} else {
-		return &Definition{}
-	}
+	return &Definition{Reflex: refprefix + defname}
 }
 
 // parsePaths .
@@ -110,7 +106,6 @@ const refprefix = "#/definitions/"
 
 // parseDefinitions .
 func (s *Swagger) parseDefinitions() {
-	s.refs = make(map[string]string, len(s.p.Messages)+len(s.p.Enums))
 	s.Definitions = make(map[string]*Definition, len(s.p.Messages)+len(s.p.Enums))
 
 	s.parseProtoEnum()
@@ -140,7 +135,6 @@ func (s *Swagger) parseProtoEnum() {
 		def.Description = enum.Description
 
 		s.Definitions[enum.Name] = def
-		s.refs[enum.Name] = refprefix + enum.Name
 	}
 }
 
@@ -161,7 +155,6 @@ func (s *Swagger) parseProtoMessage() {
 		def.Nesteds = fields
 
 		s.Definitions[mess.Name] = def
-		s.refs[mess.Name] = refprefix + mess.Name
 	}
 }
 

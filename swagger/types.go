@@ -46,8 +46,7 @@ var prototypes = map[descriptorpb.FieldDescriptorProto_Type]*Definition{
 type Swagger struct {
 	name string `json:"-"`
 
-	p    *protoc.Package   `json:"-"`
-	refs map[string]string `json:"-"`
+	p *protoc.Package `json:"-"`
 
 	// Swagger version
 	Swagger string `json:"swagger,omitempty"`
