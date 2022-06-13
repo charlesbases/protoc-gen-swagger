@@ -1,6 +1,6 @@
 # protoc-gen-swagger
 
-##### [swagger-ui](https://github.com/charlesbases/protoc-gen-swagger/tree/master/swagger-ui)
+[swagger-ui](https://github.com/charlesbases/protoc-gen-swagger/tree/master/swagger-ui)
 
 ---
 
@@ -39,9 +39,8 @@ protoc --proto_path=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
 
 - ##### confdir: 参数文件(swagger.toml)目录
 
-  
 
-#### .proto 文件注释格式
+### proto 文件注释格式
 
 - ##### 格式一: 默认请求方式为 POST
 
@@ -81,6 +80,16 @@ protoc --proto_path=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
 
 - ##### 格式二: 自定义请求方式、请求路径
 
+  - ##### desc: api 描述
+  
+  - ##### uri: api 请求路径
+  
+  - ##### method: api 请求方式
+  
+  - ##### consume: 入参文本类型。默认: application/json
+  
+  - ##### produce: 出参文本类型。默认: application/json
+  
   ```protobuf
   syntax = "proto3";
   
