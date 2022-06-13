@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/charlesbases/protoc-gen-swagger/logger"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // trim  prefix and suffix TODO 可优化
@@ -86,4 +87,31 @@ func descending(l, r string) bool {
 		}
 	}
 	return len(l) > len(r)
+}
+
+// IsEntry 是否为 proto 自动创建的 entry message. 例：map<string, string>
+func IsEntry(mf *MessageField) bool {
+	if mf.ProtoType == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE {
+		var bs strings.Builder
+		bs.Grow(len(mf.MessageName) + len(mf.ProtoName) + 6)
+
+		bs.WriteString(mf.MessageName)
+		bs.WriteString("_")
+
+		for _, item := range strings.Split(mf.ProtoName, "_") {
+			if len(item) > 0 {
+				if c := item[0]; 'a' <= c && c <= 'z' {
+					bs.WriteByte(c - ('a' - 'A'))
+				} else {
+					bs.WriteByte(c)
+				}
+				if len(item) > 1 {
+					bs.WriteString(item[1:])
+				}
+			}
+		}
+		bs.WriteString("Entry")
+		return mf.ProtoTypeName == bs.String()
+	}
+	return false
 }

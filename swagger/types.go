@@ -108,16 +108,10 @@ type Definition struct {
 	Items *Definition `json:"items,omitempty"`
 
 	// Entry proto entry type
-	Entry *MessageEntry `json:"additionalProperties,omitempty"`
+	Entry *Definition `json:"additionalProperties,omitempty"`
 
 	// Nesteds nested
 	Nesteds map[string]*Definition `json:"properties,omitempty"`
-}
-
-// MessageEntry .
-type MessageEntry struct {
-	// Type entry value type
-	Type string `json:"type,omitempty"`
 }
 
 // API .

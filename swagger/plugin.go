@@ -108,8 +108,13 @@ const refprefix = "#/definitions/"
 func (s *Swagger) parseDefinitions() {
 	s.Definitions = make(map[string]*Definition, len(s.p.Messages)+len(s.p.Enums))
 
+	// parse enums
 	s.parseProtoEnum()
-	s.parseProtoMessage()
+
+	// parse messages
+	for _, mess := range s.p.Messages {
+		s.parseProtoMessage(mess)
+	}
 }
 
 // parseProtoEnum .
@@ -139,23 +144,21 @@ func (s *Swagger) parseProtoEnum() {
 }
 
 // parseProtoMessage .
-func (s *Swagger) parseProtoMessage() {
-	for _, mess := range s.p.Messages {
-		var def = &Definition{
-			Name:        mess.Name,
-			Type:        "object",
-			Description: mess.Description,
-		}
-		fields := make(map[string]*Definition, 0)
-
-		for _, mf := range mess.Fields {
-			fields[mf.ProtoName] = s.parseProtoMessageField(mf)
-		}
-
-		def.Nesteds = fields
-
-		s.Definitions[mess.Name] = def
+func (s *Swagger) parseProtoMessage(mess *protoc.Message) {
+	var def = &Definition{
+		Name:        mess.Name,
+		Type:        "object",
+		Description: mess.Description,
 	}
+	fields := make(map[string]*Definition, 0)
+
+	for _, mf := range mess.Fields {
+		fields[mf.ProtoName] = s.parseProtoMessageField(mf)
+	}
+
+	def.Nesteds = fields
+
+	s.Definitions[mess.Name] = def
 }
 
 // parseProtoMessageField .
@@ -168,7 +171,25 @@ func (s *Swagger) parseProtoMessageField(mf *protoc.MessageField) *Definition {
 		case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 			field.Reflex = s.reflex(mf.ProtoTypeName).Reflex
 		case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
-			field.Reflex = s.reflex(mf.ProtoTypeName).Reflex
+			// 优先解析嵌套 message
+			if _, found := s.Definitions[mf.ProtoTypeName]; !found {
+				if mess, found := s.p.MessageDic[mf.ProtoTypeName]; found {
+					s.parseProtoMessage(mess)
+				}
+			}
+
+			if protoc.IsEntry(mf) {
+				if entry, found := s.Definitions[mf.ProtoTypeName]; found && len(entry.Nesteds) != 0 {
+					// if key, k_found := entry.Nesteds["key"]; k_found {
+					//
+					// }
+					if val, v_found := entry.Nesteds["value"]; v_found {
+						field.Entry = val
+					}
+				}
+			} else {
+				field.Reflex = s.reflex(mf.ProtoTypeName).Reflex
+			}
 		}
 	}
 
