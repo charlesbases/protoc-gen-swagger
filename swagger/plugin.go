@@ -227,14 +227,19 @@ func (s *Swagger) push(uri string, method string, api *API) {
 type Position string
 
 const (
-	PositionHeader Position = "header"
-	PositionQuery  Position = "query"
-	PositionBody   Position = "body"
-	PositionPath   Position = "path"
+	PositionFormData Position = "formData"
+	PositionHeader   Position = "header"
+	PositionQuery    Position = "query"
+	PositionBody     Position = "body"
+	PositionPath     Position = "path"
 )
 
-// position .
-func (api *API) position(m *protoc.ServiceMethod) Position {
+// parameterPosition .
+func (api *API) parameterPosition(m *protoc.ServiceMethod) Position {
+	if m.Consume == "multipart/form-data" {
+		return PositionFormData
+	}
+
 	switch m.Method {
 	case http.MethodGet:
 		return PositionQuery
@@ -258,11 +263,13 @@ func (api *API) parseParameter(s *Swagger, m *protoc.ServiceMethod) {
 	api.parseParameterInHeader()
 	api.parseParameterInPath(m)
 
-	switch api.position(m) {
+	switch api.parameterPosition(m) {
 	case PositionBody:
 		api.parseParameterInBody(s, m)
 	case PositionQuery:
 		api.parseParameterInQuery(s, m)
+	case PositionFormData:
+		api.parseParamterInFormData(s, m)
 	}
 }
 
@@ -369,6 +376,53 @@ func (api *API) parseParameterInQuery(s *Swagger, m *protoc.ServiceMethod) {
 						Required:    false,
 						Description: field.Description,
 					})
+				}
+			}
+		}
+	}
+}
+
+// parseParamterInFormData .
+func (api *API) parseParamterInFormData(s *Swagger, m *protoc.ServiceMethod) {
+	if mess, found := s.Definitions[m.RequestName]; found {
+		// message fields
+		for name, field := range mess.Nesteds {
+			switch field.Type {
+			case "array":
+				// multipart/form-data 参数不支持 array
+			default:
+				// nesteds
+				if len(field.Reflex) != 0 {
+					// multipart/form-data 中的 nesteds 只允许为 enum
+					if def, found := s.Definitions[strings.TrimPrefix(field.Reflex, refprefix)]; found && len(def.Enum) != 0 {
+						api.Parameters = append(api.Parameters, &Parameter{
+							In:          PositionFormData,
+							Name:        name,
+							Type:        def.Type,
+							Required:    false,
+							Enum:        def.Enum,
+							Default:     def.Default,
+							Description: def.Description,
+						})
+					}
+				} else {
+					if field.Format == "bytes" {
+						api.Parameters = append(api.Parameters, &Parameter{
+							In:          PositionFormData,
+							Name:        name,
+							Type:        "file",
+							Required:    false,
+							Description: field.Description,
+						})
+					} else {
+						api.Parameters = append(api.Parameters, &Parameter{
+							In:          PositionFormData,
+							Name:        name,
+							Type:        field.Type,
+							Required:    false,
+							Description: field.Description,
+						})
+					}
 				}
 			}
 		}

@@ -7,10 +7,12 @@ import (
 
 var prototypes = map[descriptorpb.FieldDescriptorProto_Type]*Definition{
 	descriptorpb.FieldDescriptorProto_TYPE_BYTES: {
-		Type: "string",
+		Type:   "string",
+		Format: "bytes",
 	},
 	descriptorpb.FieldDescriptorProto_TYPE_STRING: {
-		Type: "string",
+		Type:   "string",
+		Format: "string",
 	},
 	descriptorpb.FieldDescriptorProto_TYPE_FLOAT: {
 		Type:   "number",
