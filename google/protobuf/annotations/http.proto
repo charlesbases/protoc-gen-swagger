@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package google.protobuf.annots;
+
+import "google/protobuf/descriptor.proto";
+
+option cc_enable_arenas = true;
+option go_package = "google.golang.org/annotproto/types/httppb;httppb";
+option java_multiple_files = true;
+option java_outer_classname = "HttpProto";
+option java_package = "com.google.protobuf.annots";
+option objc_class_prefix = "GEXT";
+
+message HttpAnnot {
+  oneof pattern {
+    string get = 1;
+    string put = 2;
+    string post = 3;
+    string delete = 4;
+  }
+
+  // rpc desc
+  string desc = 5;
+  // content-type for request
+  string consume = 6;
+  // content-type for response
+  string produce = 7;
+}
+
+extend google.protobuf.MethodOptions {
+  HttpAnnot http = 1995;
+}

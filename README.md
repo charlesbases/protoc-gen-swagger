@@ -20,13 +20,20 @@
   git clone https://github.com/charlesbases/protoc-gen-swagger.git
   cd protoc-gen-swagger && go install .
   ```
+  
+- ##### google/protobuf/*.proto
 
-
+  ```shell
+  git clone https://github.com/charlesbases/protoc-gen-swagger.git
+  cd protoc-gen-swagger && make include
+  # 或
+  cd protoc-gen-swagger && cp -r google ${GOPATH}/src/
+  ```
 
 ### 运行
 
 ```shell
-protoc --proto_path=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
+protoc -I=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
 ```
 
 ### 参数
