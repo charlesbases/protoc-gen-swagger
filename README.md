@@ -130,7 +130,7 @@ protoc -I=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
     // 用户头像下载
     rpc UserUpload (Request) returns (Upload) {
       option (google.protobuf.plugin.http) = {
-        put: "/api/v1/users/{uid}"
+        get: "/api/v1/users/{uid}"
         produce: "multipart/form-data"
       };
     }
