@@ -22,6 +22,32 @@ const (
 	JSON_TYPE_OBJECT  = `Object`
 )
 
+type Method string
+
+const (
+	MethodGet    Method = "GET"
+	MethodPut    Method = "PUT"
+	MethodPost   Method = "POST"
+	MethodDelete Method = "DELETE"
+)
+
+var methods = map[Method]string{
+	MethodGet:    "get",
+	MethodPut:    "put",
+	MethodPost:   "post",
+	MethodDelete: "delete",
+}
+
+// String .
+func (m Method) String() string {
+	return string(m)
+}
+
+// LowerCase .
+func (m Method) LowerCase() string {
+	return methods[m]
+}
+
 var (
 	jsonTypeDefaultValue = map[string]interface{}{
 		JSON_TPYE_NUMBER:  0,
@@ -94,7 +120,7 @@ type (
 	ServiceMethod struct {
 		Name         string
 		Path         string
-		Method       string
+		Method       Method
 		Description  string
 		Consume      string
 		Produce      string

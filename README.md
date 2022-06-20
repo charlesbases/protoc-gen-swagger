@@ -76,57 +76,7 @@ protoc -I=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
   }
   ```
 
-  
-
-- ##### 格式二: 自定义请求方式、请求路径
-
-  - ##### desc: api 描述
-  
-  - ##### uri: api 请求路径
-  
-  - ##### method: api 请求方式
-  
-  - ##### consume: 入参文本类型。默认: application/json
-  
-  - ##### produce: 出参文本类型。默认: application/json
-  
-  ```protobuf
-  syntax = "proto3";
-  
-  option go_package = ".;pb";
-  
-  package pb;
-  
-  import "pb/base.proto";
-  
-  // 用户服务
-  service Users {
-    // {"desc": "用户列表", "uri": "/api/v1/users/{uid}", "method": "GET"}
-    rpc User (Request) returns (Response) {}
-    // {"desc": "用户列表", "uri": "/api/v1/users", "method": "GET"}
-    rpc UserList (Request) returns (Response) {}
-    // {"desc": "用户创建", "uri": "/api/v1/users", "method": "POST"}
-    rpc UserCreate (Request) returns (Response) {}
-  }
-  
-  // 入参
-  message Request {
-    // 用户id
-    int64 id = 1;
-    // 用户名
-    string name = 2;
-  }
-  
-  // 出参
-  message Response {
-    // 用户id
-    int64 id = 1;
-    // 用户名
-    string name = 2;
-  }
-  ```
-  
-- ### 使用示例
+- ##### 格式二: 自定义请求方式、请求路径、Content-Type
 
   ```protobuf
   syntax = "proto3";
@@ -136,17 +86,54 @@ protoc -I=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
   package pb;
   
   import "pb/base.proto";
+  import "google/protobuf/plugin/http.proto";
   
   // 用户服务
   service Users {
-    // {"desc": "用户列表", "uri": "/api/v1/users/{uid}", "method": "GET"}
-    rpc User (Request) returns (Response) {}
-    // {"desc": "用户列表", "uri": "/api/v1/users", "method": "GET"}
-    rpc UserList (Request) returns (Response) {}
-    // {"desc": "用户创建", "uri": "/api/v1/users", "method": "POST"}
-    rpc UserCreate (Request) returns (Response) {}
-    // {"desc": "头像上传", "uri": "/api/v1/users/upload", "method": "PUT", "Consume": "multipart/form-data"}
-    rpc UserUpload (Upload) returns (Response) {}
+    // 获取用户
+    rpc User (Request) returns (Response) {
+      option (google.protobuf.plugin.http) = {
+        get: "/api/v1/users/{uid}"
+      };
+    }
+    // 用户列表
+    rpc UserList (Request) returns (Response) {
+      option (google.protobuf.plugin.http) = {
+        get: "/api/v1/users"
+      };
+    }
+    // 创建用户
+    rpc UserCreate (Request) returns (Response) {
+      option (google.protobuf.plugin.http) = {
+        post: "/api/v1/users"
+      };
+    }
+    // 更新用户
+    rpc UserUpdate (Request) returns (Response) {
+      option (google.protobuf.plugin.http) = {
+        put: "/api/v1/users/{uid}"
+      };
+    }
+    // 删除用户
+    rpc UserDelete (Request) returns (Response) {
+      option (google.protobuf.plugin.http) = {
+        delete: "/api/v1/users/{uid}"
+      };
+    }
+    // 用户头像上传
+    rpc UserUpload (Upload) returns (Response) {
+      option (google.protobuf.plugin.http) = {
+        put: "/api/v1/users/{uid}"
+        consume: "multipart/form-data"
+      };
+    }
+    // 用户头像下载
+    rpc UserUpload (Request) returns (Upload) {
+      option (google.protobuf.plugin.http) = {
+        put: "/api/v1/users/{uid}"
+        produce: "multipart/form-data"
+      };
+    }
   }
   
   // 入参
@@ -178,7 +165,17 @@ protoc -I=${GOPATH}/src:. --swagger_out=confdir=.:swagger pb/*.proto
     GIF = 2;
   }
   ```
-
   
+### swagger.toml 文件说明
 
-  
+```toml
+# swagger api host
+host = "127.0.0.1:11003"
+# swagger title
+title = "SwaggerTitle"
+
+# header in request
+[header]
+Authorization = "Authorization in Header"
+```
+

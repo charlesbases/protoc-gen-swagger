@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/charlesbases/protobuf/types/httppb"
+	"github.com/charlesbases/protobuf/types/servicepb"
 	"github.com/charlesbases/protoc-gen-swagger/conf"
 	"github.com/charlesbases/protoc-gen-swagger/logger"
 	"google.golang.org/protobuf/proto"
@@ -58,40 +60,41 @@ func parseArgs(req *pluginpb.CodeGeneratorRequest) {
 
 // parse .
 func parse(req *pluginpb.CodeGeneratorRequest) *Package {
-	mark := Mark{Name: req.GetProtoFile()[0].GetPackage()}
-	var p = mark.newPackage()
+	var p = newPackage(req.GetProtoFile()[0].GetPackage())
 
 	var swg = sync.WaitGroup{}
 	swg.Add(len(req.GetProtoFile()))
 
 	for fidx := range req.GetProtoFile() {
 		go func(file *descriptorpb.FileDescriptorProto) {
-			// parse comment
-			var cs = parseComments(file.SourceCodeInfo)
+			if !strings.HasPrefix(file.GetPackage(), "google.protobuf") {
+				// parse comment
+				var cs = parseComments(file.SourceCodeInfo)
 
-			// parse enum
-			for idx, protoEnum := range file.GetEnumType() {
-				p.appendEnum(cs.parseEnum(protoEnum, COMMENT_PATH_ENUM, idx))
-			}
-
-			// parse message
-			for midx, protoMessage := range file.GetMessageType() {
-				var paths = []int{COMMENT_PATH_MESSAGE, midx}
-
-				for eidx, protoEnum := range protoMessage.GetEnumType() {
-					p.appendEnum(cs.parseMessageEnum(protoEnum, protoMessage.GetName(), append(paths, COMMENT_PATH_MESSAGE_ENUM, eidx)...))
+				// parse enum
+				for idx, protoEnum := range file.GetEnumType() {
+					p.appendEnum(cs.parseEnum(protoEnum, COMMENT_PATH_ENUM, idx))
 				}
 
-				for nidx, protoNested := range protoMessage.GetNestedType() {
-					p.appendMessage(cs.parseMessageNested(protoNested, protoMessage.GetName(), append(paths, COMMENT_PATH_MESSAGE_MESSAGE, nidx)...))
+				// parse message
+				for midx, protoMessage := range file.GetMessageType() {
+					var paths = []int{COMMENT_PATH_MESSAGE, midx}
+
+					for eidx, protoEnum := range protoMessage.GetEnumType() {
+						p.appendEnum(cs.parseMessageEnum(protoEnum, protoMessage.GetName(), append(paths, COMMENT_PATH_MESSAGE_ENUM, eidx)...))
+					}
+
+					for nidx, protoNested := range protoMessage.GetNestedType() {
+						p.appendMessage(cs.parseMessageNested(protoNested, protoMessage.GetName(), append(paths, COMMENT_PATH_MESSAGE_MESSAGE, nidx)...))
+					}
+
+					p.appendMessage(cs.parseMessage(protoMessage, paths...))
 				}
 
-				p.appendMessage(cs.parseMessage(protoMessage, paths...))
-			}
-
-			// parse service
-			for idx, protoService := range file.GetService() {
-				p.Services = append(p.Services, cs.parseService(protoService, COMMENT_PATH_SERVICE, idx))
+				// parse service
+				for idx, protoService := range file.GetService() {
+					p.Services = append(p.Services, cs.parseService(protoService, COMMENT_PATH_SERVICE, idx))
+				}
 			}
 
 			swg.Done()
@@ -147,11 +150,15 @@ func (p *Package) appendMessage(def *Message) {
 }
 
 // parseservice parse service in proto
-func (cs comments) parseService(protoService *descriptorpb.ServiceDescriptorProto, paths ...int) *Service {
-	mark := Mark{Name: protoService.GetName(), Desc: cs.comment(protoService.GetName(), paths...)}
-	var service = mark.newService()
+func (cs comments) parseService(dsdp *descriptorpb.ServiceDescriptorProto, paths ...int) *Service {
+	var service = newService(dsdp.GetName(), cs.comment(dsdp.GetName(), paths...))
 
-	for idx, protoRPC := range protoService.GetMethod() {
+	// descriptorpb.ServiceOptions
+	// if opt := parseServiceOption(dsdp.GetOptions()); opt != nil {
+	//
+	// }
+
+	for idx, protoRPC := range dsdp.GetMethod() {
 		method := cs.parseMethod(protoRPC, append(paths, COMMENT_PATH_SERVICE_METHOD, idx)...)
 		if len(method.Path) == 0 {
 			method.Path = methodPath(service.Name, method.Name)
@@ -162,18 +169,44 @@ func (cs comments) parseService(protoService *descriptorpb.ServiceDescriptorProt
 }
 
 // parseMethod parse method in service
-func (cs comments) parseMethod(protoRPC *descriptorpb.MethodDescriptorProto, paths ...int) *ServiceMethod {
-	var method = cs.mark(protoRPC.GetName(), paths...).newServiceMethod()
+func (cs comments) parseMethod(dmdp *descriptorpb.MethodDescriptorProto, paths ...int) *ServiceMethod {
+	var method = newServiceMethod(dmdp.GetName(), cs.comment(dmdp.GetName(), paths...))
+	method.RequestName = split(dmdp.GetInputType())[1]
+	method.ResponseName = split(dmdp.GetOutputType())[1]
 
-	method.RequestName = split(protoRPC.GetInputType())[1]
-	method.ResponseName = split(protoRPC.GetOutputType())[1]
+	// descriptorpb.MethodOptions
+	if opt := parseMethodOptions(dmdp.GetOptions()); opt != nil {
+		switch opt.GetPattern().(type) {
+		case *httppb.Http_Get:
+			method.Path = opt.GetGet()
+			method.Method = MethodGet
+		case *httppb.Http_Put:
+			method.Path = opt.GetPut()
+			method.Method = MethodPut
+		case *httppb.Http_Post:
+			method.Path = opt.GetPost()
+			method.Method = MethodPost
+		case *httppb.Http_Delete:
+			method.Path = opt.GetDelete()
+			method.Method = MethodDelete
+		}
+
+		method.Consume = opt.GetConsume()
+		method.Produce = opt.GetProduce()
+	}
+	if method.Produce == "" {
+		method.Produce = ContentTypeJson
+	}
+	if method.Consume == "" && method.Method != MethodGet {
+		method.Consume = ContentTypeJson
+	}
+
 	return method
 }
 
 // parseMessage parse message in proto
 func (cs comments) parseMessage(protoMessage *descriptorpb.DescriptorProto, paths ...int) *Message {
-	mark := Mark{Name: protoMessage.GetName(), Desc: cs.comment(protoMessage.GetName(), paths...)}
-	var message = mark.newMessage()
+	var message = newMessage(protoMessage.GetName(), cs.comment(protoMessage.GetName(), paths...))
 
 	for idx, field := range protoMessage.GetField() {
 		message.Fields = append(message.Fields, cs.parseMessageField(protoMessage, field, append(paths, COMMENT_PATH_MESSAGE_FIELD, idx)...))
@@ -184,8 +217,7 @@ func (cs comments) parseMessage(protoMessage *descriptorpb.DescriptorProto, path
 // parseMessageNested parse message nested in message
 func (cs comments) parseMessageNested(nested *descriptorpb.DescriptorProto, parent string, paths ...int) *Message {
 	name := nestedName(parent, nested.GetName())
-	mark := Mark{Name: name, Desc: cs.comment(name, paths...)}
-	var message = mark.newMessage()
+	var message = newMessage(name, cs.comment(name, paths...))
 
 	for idx, field := range nested.GetField() {
 		message.Fields = append(message.Fields, cs.parseMessageField(nested, field, append(paths, COMMENT_PATH_MESSAGE_FIELD, idx)...))
@@ -196,8 +228,7 @@ func (cs comments) parseMessageNested(nested *descriptorpb.DescriptorProto, pare
 // parseMessageEnum parse enum in message
 func (cs comments) parseMessageEnum(protoEnum *descriptorpb.EnumDescriptorProto, parent string, paths ...int) *Enum {
 	name := nestedName(parent, protoEnum.GetName())
-	mark := Mark{Name: name, Desc: cs.comment(name, paths...)}
-	var enum = mark.newEnum()
+	var enum = newEnum(name, cs.comment(name, paths...))
 
 	for idx, enumField := range protoEnum.GetValue() {
 		enum.Fields = append(enum.Fields, cs.parseEnumField(enumField, append(paths, COMMENT_PATH_ENUM_VALUE, idx)...))
@@ -237,8 +268,7 @@ func (cs comments) parseMessageField(protoMessage *descriptorpb.DescriptorProto,
 
 // parseEnum parse enum in proto
 func (cs comments) parseEnum(protoEnum *descriptorpb.EnumDescriptorProto, paths ...int) *Enum {
-	mark := Mark{Name: protoEnum.GetName(), Desc: cs.comment(protoEnum.GetName(), paths...)}
-	var enum = mark.newEnum()
+	var enum = newEnum(protoEnum.GetName(), cs.comment(protoEnum.GetName(), paths...))
 
 	for idx, enumField := range protoEnum.GetValue() {
 		enum.Fields = append(enum.Fields, cs.parseEnumField(enumField, append(paths, COMMENT_PATH_ENUM_VALUE, idx)...))
@@ -253,4 +283,24 @@ func (cs comments) parseEnumField(protoEnumField *descriptorpb.EnumValueDescript
 		Value:       protoEnumField.GetNumber(),
 		Description: cs.comment(protoEnumField.GetName(), paths...),
 	}
+}
+
+// parseMethodOptions .
+func parseMethodOptions(opts *descriptorpb.MethodOptions) *httppb.Http {
+	if opts != nil {
+		if exp, ok := proto.GetExtension(opts, httppb.E_Http).(*httppb.Http); ok {
+			return exp
+		}
+	}
+	return nil
+}
+
+// parseServiceOption .
+func parseServiceOption(opts *descriptorpb.ServiceOptions) *servicepb.Service {
+	if opts != nil {
+		if exp, ok := proto.GetExtension(opts, httppb.E_Http).(*servicepb.Service); ok {
+			return exp
+		}
+	}
+	return nil
 }

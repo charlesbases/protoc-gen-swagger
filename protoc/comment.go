@@ -1,10 +1,7 @@
 package protoc
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"strings"
 )
 
 // comment path
@@ -64,26 +61,51 @@ func (cs comments) comment(name string, paths ...int) string {
 	return name
 }
 
-// mark .
-func (cs comments) mark(name string, paths ...int) *Mark {
-	var mark = &Mark{Name: name, Desc: name, Method: http.MethodPost}
-
-	if comment, found := cs[fmt.Sprintf("%v", paths)]; found && comment.leading != "" {
-		if err := json.Unmarshal([]byte(comment.leading), mark); err != nil {
-			mark.Desc = comment.leading
-		}
+// newPackage .
+func newPackage(name string) *Package {
+	return &Package{
+		Name:       name,
+		Version:    version(),
+		Services:   make([]*Service, 0),
+		Enums:      make([]*Enum, 0),
+		EnumDic:    make(map[string]*Enum, 0),
+		Messages:   make([]*Message, 0),
+		MessageDic: make(map[string]*Message, 0),
 	}
+}
 
-	// Method
-	mark.Method = strings.ToUpper(mark.Method)
-
-	// ContentType
-	if len(mark.Consume) == 0 && mark.Method != http.MethodGet {
-		mark.Consume = ContentTypeJson
+// newService .
+func newService(name, desc string) *Service {
+	return &Service{
+		Name:        name,
+		Description: desc,
+		Methods:     make([]*ServiceMethod, 0),
 	}
-	if len(mark.Produce) == 0 {
-		mark.Produce = ContentTypeJson
-	}
+}
 
-	return mark
+// newServiceMethod .
+func newServiceMethod(name, desc string) *ServiceMethod {
+	return &ServiceMethod{
+		Name:        name,
+		Method:      MethodPost,
+		Description: desc,
+	}
+}
+
+// newEnum .
+func newEnum(name, desc string) *Enum {
+	return &Enum{
+		Name:        name,
+		Description: desc,
+		Fields:      make([]*EnumField, 0),
+	}
+}
+
+// newMessage .
+func newMessage(name, desc string) *Message {
+	return &Message{
+		Name:        name,
+		Description: desc,
+		Fields:      make([]*MessageField, 0),
+	}
 }

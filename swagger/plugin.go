@@ -28,9 +28,9 @@ func apiHost() string {
 
 // New .
 func New(p *protoc.Package) *Swagger {
-	var service = conf.Get().Service
-	if len(service) == 0 {
-		service = p.Name
+	var title = conf.Get().Title
+	if len(title) == 0 {
+		title = p.Name
 	}
 
 	var s = &Swagger{
@@ -39,9 +39,9 @@ func New(p *protoc.Package) *Swagger {
 
 		Swagger: SwaggerVersion,
 		Info: &Info{
-			Title:       service,
+			Title:       title,
 			Version:     p.Version,
-			Description: service,
+			Description: title,
 		},
 		Host:     apiHost(),
 		BasePath: "",
@@ -95,7 +95,7 @@ func (s *Swagger) parseServices() {
 			api.parseResponses(s, m)
 			api.parseParameter(s, m)
 
-			s.push(m.Path, m.Method, api)
+			s.push(m.Path, m.Method.LowerCase(), api)
 		}
 
 		s.Tags = append(s.Tags, tag)
@@ -208,8 +208,6 @@ func (s *Swagger) parseProtoMessageField(mf *protoc.MessageField) *Definition {
 
 // push api
 func (s *Swagger) push(uri string, method string, api *API) {
-	method = strings.ToLower(method)
-
 	if apis, found := s.Paths[uri]; found {
 		if _, found := apis[method]; found {
 			logger.Fatalf("duplicate route. %s [%s]", uri, method)
@@ -275,14 +273,14 @@ func (api *API) parseParameter(s *Swagger, m *protoc.ServiceMethod) {
 
 // parseParameterInHeader .
 func (api *API) parseParameterInHeader() {
-	// Authorization
-	if len(conf.Get().Header.Auth) != 0 {
+	// Header
+	for name, desc := range conf.Get().Header {
 		api.Parameters = append(api.Parameters, &Parameter{
 			In:          PositionHeader,
-			Name:        conf.Get().Header.Auth,
+			Name:        name,
 			Type:        "string",
 			Required:    false,
-			Description: "Authorization in Header",
+			Description: desc,
 		})
 	}
 }

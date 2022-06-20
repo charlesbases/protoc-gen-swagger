@@ -14,14 +14,9 @@ var conf = new(config)
 
 // config .
 type config struct {
-	Host    string
-	Service string
-	Header  header
-}
-
-// header .
-type header struct {
-	Auth string
+	Host   string
+	Title  string
+	Header map[string]string
 }
 
 // Get .
