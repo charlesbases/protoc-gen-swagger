@@ -1,7 +1,4 @@
-all: include install
+all: install
 
 install:
 	@go install .
-
-include:
-	cp -r google ${GOPATH}/src/

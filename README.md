@@ -24,10 +24,10 @@
 - ##### google/protobuf/*.proto
 
   ```shell
-  git clone https://github.com/charlesbases/protoc-gen-swagger.git
-  cd protoc-gen-swagger && make include
+  git clone https://github.com/charlesbases/protobuf.git
+  cd protobuf && make init
   # 或
-  cd protoc-gen-swagger && cp -r google ${GOPATH}/src/
+  cd protobuf && cp -r google ${GOPATH}/src/.
   ```
 
 ### 运行
